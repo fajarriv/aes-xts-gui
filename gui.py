@@ -1,7 +1,7 @@
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
-
+import binascii
 from aes_xts import AESXTS
 
 
@@ -99,14 +99,17 @@ class MainWindow(tk.Tk):
 
         aes = AESXTS(self.read_key_file())
         input_data = self.read_input_file()
-        print("Input data", input_data)
+        
+        print("=======================")
+        print(input_data)
+
         if mode == "encrypt":
             self.result = aes.encrypt(input_data)
             self.output_file_type = f"{self.origin_file_type}.txt"
         else:
             self.result = aes.decrypt(input_data)
             self.output_file_type = self.origin_file_type
-        print(self.result)
+        # print(self.result)
 
     def read_key_file(self):
         with open(self.key_file_path, "r") as key_file:
@@ -115,8 +118,9 @@ class MainWindow(tk.Tk):
 
     def read_input_file(self):
         with open(self.input_file_path, "rb") as input_file:
-            print("Reading input file", input_file.read())
-            return input_file.read()
+            hex_str = input_file.read().hex()
+            print("hex_str", hex_str)
+            return binascii.unhexlify(hex_str)
 
     def download_result(self):
         if not hasattr(self, "result"):

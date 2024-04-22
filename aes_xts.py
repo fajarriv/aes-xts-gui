@@ -94,13 +94,14 @@ class AESXTS:
                 resultPlain.append(self.block_xor(plain_block, tweak))
                 # get next tweak
                 tweak = self.get_next_tweak(tweak)
-            
+
             # last_tweak/m-1 tweak for last block. tweak for the second last block
             last_tweak = tweak
             tweak = self.get_next_tweak(last_tweak)
 
             # second last block decrpytion
-            plain_block = self.aes.decrypt(self.block_xor(input_blocks[-2], tweak))
+            plain_block = self.aes.decrypt(
+                self.block_xor(input_blocks[-2], tweak))
             yy = self.block_xor(plain_block, tweak)
 
             cm = input_blocks[-1]
@@ -109,11 +110,13 @@ class AESXTS:
             xx = cm + cp
 
             # last block decryption
-            last_plain_block = self.aes.decrypt(self.block_xor(xx, last_tweak))  
+            last_plain_block = self.aes.decrypt(self.block_xor(xx, last_tweak))
             last_plain_result = self.block_xor(last_plain_block, last_tweak)
 
             resultPlain.append(last_plain_result)
-            resultPlain.append(pm) 
+            resultPlain.append(pm)
+
+        return b"".join(resultPlain)
 
     def block_xor(self, block1, block2):
         return bytes(b1 ^ b2 for b1, b2 in zip(block1, block2))
