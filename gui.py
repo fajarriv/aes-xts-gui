@@ -1,127 +1,144 @@
+import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from os import urandom
+
+from aes_xts import AESXTS
+
 
 class MainWindow(tk.Tk):
     def __init__(self, master=None):
         super().__init__(master)
+
         self.title("AES XTS Encryption/Decryption GUI")
-        self.createWidgets()
-        self.updateExecuteButton()
-        
-    def createWidgets(self):
+        self.create_widgets()
+
+    def create_widgets(self):
         # Header label
-        self.headerLabel = tk.Label(self, text="Select your mode:", font="Times 16 bold")
-        self.headerLabel.pack(pady=10)
-        
+        self.header_label = tk.Label(
+            self, text="Select your mode:", font="Times 16 bold")
+        self.header_label.pack(pady=10)
+
         # Radio buttons
         self.mode = tk.StringVar()
         self.mode.set("encrypt")  # Set default encrypt
         modes = [("Encrypt", "encrypt"), ("Decrypt", "decrypt")]
         for text, mode in modes:
-            tk.Radiobutton(self, text=text, variable=self.mode, value=mode, command=self.updateExecuteButton).pack(anchor=tk.W)
-        
-        # Label to display selected data file
-        self.dataFileLabel = tk.Label(self, text="Data file:")
-        self.dataFileLabel.pack(pady=(20, 0))
-        self.selectedDataFile = tk.Label(self, text="", wraplength=400)
-        self.selectedDataFile.pack(padx=20, pady=5)
-        self.browseDataButton = tk.Button(self, text="Browse...", command=lambda: self.browseFile(self.selectedDataFile))
-        self.browseDataButton.pack(pady=5)
+            tk.Radiobutton(self, text=text, variable=self.mode, value=mode,
+                           command=self.update_execute_button).pack(anchor=tk.W)
 
-        # Label to display selected key file
-        self.keyFileLabel = tk.Label(self, text="Key file:")
-        self.keyFileLabel.pack(pady=(10, 0))
-        self.selectedKeyFile = tk.Label(self, text="", wraplength=400)
-        self.selectedKeyFile.pack(padx=20, pady=5)
-        self.browseKeyButton = tk.Button(self, text="Browse...", command=lambda: self.browseFile(self.selectedKeyFile))
-        self.browseKeyButton.pack(pady=5)
-        
+        # Input file widgets
+        self.input_file_label = tk.Label(
+            self, text="Input file:", font="Times 14 bold")
+        self.input_file_label.pack(pady=(20, 0))
+
+        self.selected_input_file_label = tk.Label(
+            self, text="", wraplength=400)
+        self.selected_input_file_label.pack(padx=20, pady=5)
+
+        self.browse_input_file_button = tk.Button(
+            self, text="Browse input file", command=self.select_input_file)
+        self.browse_input_file_button.pack(pady=5)
+
+        # key file widgets
+        self.key_file_label = tk.Label(
+            self, text="Key file:", font="Times 14 bold")
+        self.key_file_label.pack(pady=(10, 0))
+
+        self.selected_key_file = tk.Label(self, text="", wraplength=400)
+        self.selected_key_file.pack(padx=20, pady=5)
+
+        self.browse_key_file_button = tk.Button(
+            self, text="Browse key file", command=self.select_key_file)
+        self.browse_key_file_button.pack(pady=5)
+
         # Button execute encryption/decryption
-        self.executeButton = tk.Button(self, text="Execute Encryption", command=self.executeOperation)
-        self.executeButton.pack(pady=20)
-        
+        self.execute_button = tk.Button(
+            self, text="Execute Encryption", command=self.execute_operation)
+        self.execute_button.pack(pady=20)
+
         # Button to select download directory
-        self.downloadButton = tk.Button(self, text="Select Download Directory", command=self.selectDownloadDirectory)
+        self.downloadButton = tk.Button(
+            self, text="Select Download Directory", command=self.download_result)
         self.downloadButton.pack(pady=10)
 
         # Label to display selected download directory
-        self.selectedDownloadDirLabel = tk.Label(self, text="Download directory:")
+        self.selectedDownloadDirLabel = tk.Label(
+            self, text="Download directory:")
         self.selectedDownloadDirLabel.pack(pady=(10, 0))
         self.selectedDownloadDir = tk.Label(self, text="", wraplength=400)
         self.selectedDownloadDir.pack(padx=20, pady=5)
 
-    def browseFile(self, label):
-        # Open file dialog
-        file_path = filedialog.askopenfilename()
-        if file_path:
-            label.config(text=file_path)
+    def select_input_file(self):
+        self.input_file_path = filedialog.askopenfilename()
+        if self.input_file_path:
+            self.file_base_name = os.path.basename(self.input_file_path).split(".")[0]
+            self.origin_file_type = self.input_file_path.split(".")[1]
+            self.selected_input_file_label.config(
+                text=f'{self.file_base_name}.{self.origin_file_type}', wraplength=400)
 
-    def updateExecuteButton(self):
+    def select_key_file(self):
+        self.key_file_path = filedialog.askopenfilename()
+        if self.key_file_path:
+            self.selected_key_file.config(
+                text=os.path.basename(self.key_file_path))
+
+    def update_execute_button(self):
         mode = self.mode.get()
         if mode == "encrypt":
-            self.executeButton.config(text="Execute Encryption")
+            self.execute_button.config(text="Execute Encryption")
         else:
-            self.executeButton.config(text="Execute Decryption")
-    
-    def executeOperation(self):
+            self.execute_button.config(text="Execute Decryption")
+
+    def execute_operation(self):
         mode = self.mode.get()
-        data_path = self.selectedDataFile.cget("text")
-        key_path = self.selectedKeyFile.cget("text")
-        if not data_path or not key_path:
-            messagebox.showerror("Error", "Please select both data and key files.")
+
+        if not self.input_file_path or not self.key_file_path:
+            messagebox.showerror(
+                "Error", "Please select both data and key files.")
             return
+
+        aes = AESXTS(self.read_key_file())
+        input_data = self.read_input_file()
+        print("Input data", input_data)
         if mode == "encrypt":
-            self.encrypt(data_path, key_path)
+            self.result = aes.encrypt(input_data)
+            self.output_file_type = f"{self.origin_file_type}.txt"
         else:
-            self.decrypt(data_path, key_path)
-    
-    def encrypt(self, data_path, key_path):
-        with open(data_path, 'rb') as file:
-            plaintext = file.read()
-        with open(key_path, 'rb') as f:
-            key = f.read()
+            self.result = aes.decrypt(input_data)
+            self.output_file_type = self.origin_file_type
+        print(self.result)
 
-        if len(key) != 32:
-            messagebox.showerror("Error", "Invalid key size. AES-128-XTS requires a 32-byte key.")
+    def read_key_file(self):
+        with open(self.key_file_path, "r") as key_file:
+            key = bytes.fromhex(key_file.read().strip())
+            return key
+
+    def read_input_file(self):
+        with open(self.input_file_path, "rb") as input_file:
+            print("Reading input file", input_file.read())
+            return input_file.read()
+
+    def download_result(self):
+        if not hasattr(self, "result"):
+            messagebox.showerror("Error", "No result to bed downloaded.")
             return
 
-        key1 = key[:16]
-        key2 = key[16:33]
+        download_dir = filedialog.askdirectory()
+        if download_dir:
 
-        cipher = Cipher(algorithms.AES(key1), modes.XTS(key2), backend=default_backend())
-        encryptor = cipher.encryptor()
+            complete_path = os.path.join(
+                download_dir, f"{self.file_base_name}-result." + self.output_file_type)
+            
+            with open(complete_path, "wb") as output_file:
+                output_file.write(self.result)
+                messagebox.showinfo("Success", "Output has been successfully downloaded!")
 
-        ciphertext = encryptor.update(plaintext) + encryptor.finalize()
-        print(ciphertext)
 
-        messagebox.showinfo("Info", "Encryption successful!")
-
-        # After encryption, select download directory
-        self.selectDownloadDirectory()
-    
-    def decrypt(self, data_path, key_path):
-        # (to be implemented)
-        messagebox.showinfo("Info", "Decryption successful!")
-
-        # After decryption, select download directory
-        self.selectDownloadDirectory()
-
-    def selectDownloadDirectory(self):
-        # Open directory selection dialog
-        download_path = filedialog.askdirectory()
-        if download_path:
-            self.selectedDownloadDir.config(text=download_path)
-
-    def read_file(self, file_path, mode):
-        with open(file_path, mode) as file:
-            return file.read()
 
 def main():
     app = MainWindow()
     app.mainloop()
+
 
 if __name__ == "__main__":
     main()
